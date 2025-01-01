@@ -1,12 +1,14 @@
 // frontend/src/pages/Kasir.js
+
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import EditNoteModal from "../components/EditNoteModal";
 import SuccessModal from "../components/SuccessModal";
+import OrderArchiveModal from "../components/OrderArchiveModal";
 
 const Kasir = ({ setToast }) => {
   const [menuItems, setMenuItems] = useState([]);
-  const [orders, setOrders] = useState({}); // key: item._id, value: { ...item, quantity, note }
+  const [orders, setOrders] = useState({});
   const [orderType, setOrderType] = useState("Take Away");
   const [customerName, setCustomerName] = useState("");
   const [tableNumber, setTableNumber] = useState("");
@@ -18,6 +20,9 @@ const Kasir = ({ setToast }) => {
 
   const [successModalOpen, setSuccessModalOpen] = useState(false);
   const [successDetails, setSuccessDetails] = useState(null);
+
+  // State for Order Archive Modal
+  const [orderArchiveModalOpen, setOrderArchiveModalOpen] = useState(false);
 
   // Fetch Menu Items once
   useEffect(() => {
@@ -37,24 +42,16 @@ const Kasir = ({ setToast }) => {
     }
   };
 
-  /**
-   * Menambahkan item ke cart.
-   * Dapatkan catatan dari detail popup, atau kosong.
-   */
   const addToOrder = (item, note = "") => {
     setOrders((prev) => {
       const updated = { ...prev };
       if (updated[item._id]) {
-        // item sudah ada di cart → quantity + 1
         updated[item._id].quantity += 1;
-        // Boleh tambahkan logika merge note. Misalnya:
-        // if (note) updated[item._id].note = note;
       } else {
-        // item baru
         updated[item._id] = {
           ...item,
           quantity: 1,
-          note, // catatan user
+          note,
         };
       }
       return updated;
@@ -65,7 +62,6 @@ const Kasir = ({ setToast }) => {
     });
   };
 
-  // Fungsi menambah / kurang quantity
   const incrementOrder = (key) => {
     setOrders((prev) => {
       const updated = { ...prev };
@@ -85,9 +81,7 @@ const Kasir = ({ setToast }) => {
     });
   };
 
-  // Modal "Edit Note" di cart
   const openEditNoteModal = (key) => {
-    // key = item._id
     setCurrentEditOrder({ key, ...orders[key] });
     setEditNoteModalOpen(true);
   };
@@ -98,7 +92,6 @@ const Kasir = ({ setToast }) => {
   };
 
   const submitEditNote = (note) => {
-    // simpan note di orders
     setOrders((prev) => {
       const updated = { ...prev };
       updated[currentEditOrder.key].note = note;
@@ -111,7 +104,6 @@ const Kasir = ({ setToast }) => {
     closeEditNoteModal();
   };
 
-  // Render cart
   const renderOrderList = () => {
     const orderKeys = Object.keys(orders);
     if (orderKeys.length === 0) {
@@ -133,7 +125,6 @@ const Kasir = ({ setToast }) => {
             )}
             <div className="flex items-center text-gray-500 text-sm space-x-2 mt-1">
               <span>Rp {order.price.toLocaleString()}</span>
-              {/* Tombol Edit Note */}
               <button
                 onClick={() => openEditNoteModal(key)}
                 className="text-blue-600 underline"
@@ -163,7 +154,6 @@ const Kasir = ({ setToast }) => {
     });
   };
 
-  // Filter kategori (opsional)
   const handleCategoryFilter = (category) => {
     if (category === "All Menu") {
       fetchMenuItems();
@@ -173,11 +163,8 @@ const Kasir = ({ setToast }) => {
       );
       setMenuItems(filtered);
     }
-    // Optional: Reset orders when filter changes
-    // setOrders({});
   };
 
-  // Order type
   const handleOrderType = (type) => {
     setOrderType(type);
     if (type === "Take Away") {
@@ -185,7 +172,6 @@ const Kasir = ({ setToast }) => {
     }
   };
 
-  // Proses pembayaran
   const handlePay = async () => {
     if (!customerName) {
       setToast({ type: "error", message: "Harap isi nama pelanggan" });
@@ -220,13 +206,11 @@ const Kasir = ({ setToast }) => {
     const orderNumber = "ORD#" + Date.now().toString().slice(-8);
     const orderDate = new Date().toISOString();
 
-    // Ubah format items untuk sesuai dengan schema Order
-
     const formattedItems = Object.values(orders).map((item) => ({
-      menuItem: item._id, // ID of MenuItem
+      menuItem: item._id,
       quantity: item.quantity,
       note: item.note || "",
-      price: item.price, // Price is directly included
+      price: item.price,
     }));
 
     const orderDetails = {
@@ -245,7 +229,6 @@ const Kasir = ({ setToast }) => {
 
     try {
       const token = localStorage.getItem("token");
-      // simpan ke backend
       const res = await axios.post("/api/orders", orderDetails, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -253,7 +236,6 @@ const Kasir = ({ setToast }) => {
         setSuccessDetails(res.data);
         setSuccessModalOpen(true);
 
-        // reset pesanan
         setOrders({});
         setCustomerName("");
         setTableNumber("");
@@ -280,6 +262,144 @@ const Kasir = ({ setToast }) => {
   const closeSuccessModal = () => {
     setSuccessModalOpen(false);
     setSuccessDetails(null);
+  };
+
+  const handleArchive = async () => {
+    if (Object.keys(orders).length === 0) {
+      setToast({
+        type: "error",
+        message: "Tidak ada pesanan untuk diarsipkan",
+      });
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem("token");
+      const orderNumber = "ORD#" + Date.now().toString().slice(-8);
+      const orderDate = new Date().toISOString();
+
+      const formattedItems = Object.values(orders).map((item) => ({
+        menuItem: item._id,
+        quantity: item.quantity,
+        note: item.note || "",
+        price: item.price,
+      }));
+
+      const archivedOrder = {
+        orderNumber,
+        orderDate,
+        customerName,
+        orderType,
+        tableNumber: orderType === "Dine In" ? tableNumber : null,
+        items: formattedItems,
+        subtotal: Object.values(orders).reduce(
+          (sum, item) => sum + item.price * item.quantity,
+          0
+        ),
+        tax: Math.round(
+          Object.values(orders).reduce(
+            (sum, item) => sum + item.price * item.quantity,
+            0
+          ) * 0.1
+        ),
+        total: Math.round(
+          Object.values(orders).reduce(
+            (sum, item) => sum + item.price * item.quantity,
+            0
+          ) * 1.1
+        ),
+        receivedAmount: 0,
+        change: 0,
+        isArchived: true,
+      };
+
+      const res = await axios.post("/api/orders", archivedOrder, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (res.status === 201) {
+        setToast({
+          type: "success",
+          message: "Pesanan berhasil diarsipkan.",
+        });
+        setOrders({});
+        setCustomerName("");
+        setTableNumber("");
+        setReceivedAmount(0);
+      } else {
+        setToast({ type: "error", message: "Gagal mengarsipkan pesanan." });
+      }
+    } catch (error) {
+      console.error("Error archiving order:", error);
+      if (
+        error.response &&
+        error.response.data &&
+        error.response.data.message
+      ) {
+        setToast({
+          type: "error",
+          message: error.response.data.message,
+        });
+      } else {
+        setToast({
+          type: "error",
+          message: "Terjadi kesalahan saat mengarsipkan pesanan.",
+        });
+      }
+    }
+  };
+
+  const handleRestoreOrder = (order) => {
+    if (!order.items || !order.items.length) {
+      setToast({
+        type: "error",
+        message: "Pesanan yang diarsipkan tidak memiliki item.",
+      });
+      return;
+    }
+
+    const restoredOrders = { ...orders };
+
+    order.items.forEach((item) => {
+      if (!item.menuItem || !item.menuItem._id) {
+        console.error("MenuItem tidak terisi dengan benar:", item);
+        setToast({
+          type: "error",
+          message: "Pesanan yang diarsipkan memiliki item yang tidak valid.",
+        });
+        return;
+      }
+
+      const menuItemId = item.menuItem._id;
+      const menuItemName = item.menuItem.name;
+      const menuItemPrice = item.menuItem.price;
+      const menuItemImage = item.menuItem.image || "/uploads/default-menu.png";
+      const menuItemCategory = item.menuItem.category || "";
+
+      if (restoredOrders[menuItemId]) {
+        restoredOrders[menuItemId].quantity += item.quantity;
+        if (item.note) {
+          restoredOrders[menuItemId].note = item.note;
+        }
+      } else {
+        restoredOrders[menuItemId] = {
+          _id: menuItemId,
+          name: menuItemName,
+          price: menuItemPrice,
+          quantity: item.quantity,
+          note: item.note || "",
+          image: menuItemImage,
+          category: menuItemCategory,
+        };
+      }
+    });
+
+    setOrders(restoredOrders);
+    setToast({
+      type: "success",
+      message: "Pesanan berhasil dikembalikan ke keranjang.",
+    });
+    setOrderArchiveModalOpen(false);
   };
 
   return (
@@ -544,16 +664,28 @@ const Kasir = ({ setToast }) => {
               </div>
             </div>
 
-            <button
-              onClick={handlePay}
-              className={`w-full mt-4 ${
-                Object.keys(orders).length > 0
-                  ? "bg-blue-600 text-white hover:bg-blue-700"
-                  : "bg-gray-200 text-gray-600"
-              } font-medium py-2 rounded-lg transition-colors duration-200`}
-            >
-              Pay
-            </button>
+            <div className="flex space-x-2 mt-4">
+              <button
+                onClick={handlePay}
+                className={`flex-1 ${
+                  Object.keys(orders).length > 0
+                    ? "bg-blue-600 text-white hover:bg-blue-700"
+                    : "bg-gray-200 text-gray-600"
+                } font-medium py-2 rounded-lg transition-colors duration-200`}
+              >
+                Pay
+              </button>
+              <button
+                onClick={handleArchive}
+                className={`flex-1 ${
+                  Object.keys(orders).length > 0
+                    ? "bg-yellow-600 text-white hover:bg-yellow-700"
+                    : "bg-gray-200 text-gray-600"
+                } font-medium py-2 rounded-lg transition-colors duration-200`}
+              >
+                Archive
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -564,7 +696,7 @@ const Kasir = ({ setToast }) => {
           isOpen={editNoteModalOpen}
           onClose={closeEditNoteModal}
           onSubmit={submitEditNote}
-          order={currentEditOrder} // { key, _id, name, note, quantity, ... }
+          order={currentEditOrder}
         />
       )}
 
@@ -576,7 +708,36 @@ const Kasir = ({ setToast }) => {
           orderDetails={successDetails}
         />
       )}
+
+      {/* Order Archive Modal */}
+      <OrderArchiveModal
+        isOpen={orderArchiveModalOpen}
+        onClose={() => setOrderArchiveModalOpen(false)}
+        onRestore={handleRestoreOrder} // Pastikan ini adalah fungsi
+      />
+
+      {/* Button to open Order Archive Modal */}
+      <button
+        onClick={() => setOrderArchiveModalOpen(true)}
+        className="fixed bottom-5 right-5 bg-green-600 text-white p-3 rounded-full shadow-lg hover:bg-green-700"
+        title="Open Order Archive"
+      >
+        <svg
+          className="w-6 h-6"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2"
+            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+          />
+        </svg>
+      </button>
     </div>
   );
 };
+
 export default Kasir;

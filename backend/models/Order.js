@@ -9,11 +9,14 @@ const OrderItemSchema = new mongoose.Schema({
   },
   quantity: { type: Number, required: true, default: 1 },
   note: { type: String, default: "" },
+  price: { type: Number, required: true }, // Pastikan harga disertakan
 });
 
 const OrderSchema = new mongoose.Schema(
   {
     user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    orderNumber: { type: String, required: true, unique: true },
+    orderDate: { type: Date, default: Date.now },
     customerName: { type: String, required: true },
     tableNumber: { type: Number }, // Nullable untuk Take Away
     orderType: { type: String, enum: ["Dine In", "Take Away"], required: true },
@@ -23,8 +26,7 @@ const OrderSchema = new mongoose.Schema(
     total: { type: Number, required: true },
     receivedAmount: { type: Number, required: true },
     change: { type: Number, required: true },
-    orderNumber: { type: String, required: true, unique: true },
-    orderDate: { type: Date, default: Date.now },
+    isArchived: { type: Boolean, default: false }, // Field baru
   },
   { timestamps: true }
 );

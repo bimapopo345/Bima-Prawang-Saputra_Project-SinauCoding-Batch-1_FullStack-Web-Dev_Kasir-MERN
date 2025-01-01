@@ -1,9 +1,10 @@
 // frontend/src/components/OrderArchiveModal.js
+
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 
-const OrderArchiveModal = ({ isOpen, onClose }) => {
-  const [orders, setOrders] = useState([]);
+const OrderArchiveModal = ({ isOpen, onClose, onRestore }) => {
+  const [archivedOrders, setArchivedOrders] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -18,16 +19,22 @@ const OrderArchiveModal = ({ isOpen, onClose }) => {
     setError(null);
     try {
       const token = localStorage.getItem("token");
-      const res = await axios.get("/api/orders", {
+      const res = await axios.get("/api/orders/archived", {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setOrders(res.data);
+      setArchivedOrders(res.data);
     } catch (error) {
       console.error("Error fetching archived orders:", error);
       setError("Gagal mengambil data pesanan.");
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleRestore = (order) => {
+    onRestore(order); // Pastikan onRestore adalah fungsi yang diteruskan dari parent
+    setArchivedOrders((prev) => prev.filter((o) => o._id !== order._id));
+    setError(null);
   };
 
   return (
@@ -61,43 +68,50 @@ const OrderArchiveModal = ({ isOpen, onClose }) => {
               <p className="text-gray-500">Loading...</p>
             ) : error ? (
               <p className="text-red-500">{error}</p>
-            ) : orders.length === 0 ? (
+            ) : archivedOrders.length === 0 ? (
               <p className="text-gray-500">No archived orders.</p>
             ) : (
               <div className="space-y-4">
-                {orders.map((order) => (
-                  <div key={order._id} className="border-b pb-4">
-                    <div className="flex justify-between">
-                      <span className="font-medium">{order.orderNumber}</span>
-                      <span className="text-gray-600">
+                {archivedOrders.map((order) => (
+                  <div
+                    key={order._id}
+                    className="border rounded-lg p-4 flex justify-between items-center"
+                  >
+                    <div>
+                      <div className="font-semibold">{order.orderNumber}</div>
+                      <div className="text-sm text-gray-500">
                         {new Date(order.orderDate).toLocaleString("id-ID")}
-                      </span>
+                      </div>
+                      <div className="mt-2">
+                        {order.items.map((item, index) => (
+                          <div
+                            key={index}
+                            className="flex justify-between text-sm"
+                          >
+                            <span>
+                              {item.quantity} x {item.menuItem?.name}
+                              {item.note ? ` - ${item.note}` : ""}
+                            </span>
+                            <span>
+                              Rp{" "}
+                              {(
+                                (item.menuItem?.price || 0) * item.quantity
+                              ).toLocaleString()}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex justify-between font-semibold mt-2">
+                        <span>Total:</span>
+                        <span>Rp {order.total.toLocaleString()}</span>
+                      </div>
                     </div>
-                    <div className="mt-2">
-                      {order.items.map((item, index) => (
-                        <div
-                          key={index}
-                          className="flex justify-between text-sm"
-                        >
-                          <span>
-                            {item.quantity} x {item.menuItem?.name}
-                            {item.note ? ` - ${item.note}` : ""}
-                          </span>
-                          <span>
-                            Rp{" "}
-                            {(
-                              (item.menuItem?.price || 0) * item.quantity
-                            ).toLocaleString()}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="flex justify-between mt-2">
-                      <span className="font-semibold">Total:</span>
-                      <span className="font-semibold">
-                        Rp {order.total.toLocaleString()}
-                      </span>
-                    </div>
+                    <button
+                      onClick={() => handleRestore(order)}
+                      className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
+                    >
+                      Restore
+                    </button>
                   </div>
                 ))}
               </div>
