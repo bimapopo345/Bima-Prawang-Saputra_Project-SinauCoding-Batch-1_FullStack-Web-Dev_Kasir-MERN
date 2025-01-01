@@ -307,6 +307,7 @@ const Kasir = ({ setToast }) => {
       };
 
       const token = localStorage.getItem("token");
+      console.log("Archived order akan dikirim:", archivedOrder);
       const res = await axios.post("/api/orders", archivedOrder, {
         headers: { Authorization: `Bearer ${token}` },
       });

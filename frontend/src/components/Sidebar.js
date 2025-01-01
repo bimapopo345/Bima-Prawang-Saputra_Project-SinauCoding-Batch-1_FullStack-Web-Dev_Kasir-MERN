@@ -6,11 +6,10 @@ import {
   MdPointOfSale,
   MdAssessment,
   MdSettings,
+  MdRestaurantMenu,
 } from "react-icons/md";
-// Tambah icon Catalog (misal MdRestaurantMenu)
-import { MdRestaurantMenu } from "react-icons/md";
 
-const Sidebar = () => {
+const Sidebar = ({ user }) => {
   const menuItems = [
     { name: "Dashboard", path: "/", icon: <MdDashboard size={24} /> },
     { name: "Kasir", path: "/kasir", icon: <MdPointOfSale size={24} /> },
@@ -19,14 +18,17 @@ const Sidebar = () => {
       path: "/sales-report",
       icon: <MdAssessment size={24} />,
     },
-    // Tambah Catalog
-    {
+    { name: "Settings", path: "/settings", icon: <MdSettings size={24} /> },
+  ];
+
+  // Tambahkan menu Catalog kalau user.role === "Admin"
+  if (user && user.role === "Admin") {
+    menuItems.splice(3, 0, {
       name: "Catalog",
       path: "/catalog",
       icon: <MdRestaurantMenu size={24} />,
-    },
-    { name: "Settings", path: "/settings", icon: <MdSettings size={24} /> },
-  ];
+    });
+  }
 
   return (
     <div className="h-screen w-64 bg-gray-800 text-white flex flex-col">

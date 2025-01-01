@@ -8,14 +8,15 @@ const {
   updateMenuItem,
   deleteMenuItem,
 } = require("../controllers/menuController");
+const { protect, adminOnly } = require("../middleware/authMiddleware");
 
 // Route upload (POST /api/menu/upload)
-router.post("/upload", uploadMenuImage);
+router.post("/upload", protect, adminOnly, uploadMenuImage);
 
-// CRUD
-router.get("/", getAllMenuItems);
-router.post("/", createMenuItem);
-router.put("/:id", updateMenuItem);
-router.delete("/:id", deleteMenuItem);
+// CRUD Menu
+router.get("/", protect, getAllMenuItems);
+router.post("/", protect, adminOnly, createMenuItem);
+router.put("/:id", protect, adminOnly, updateMenuItem);
+router.delete("/:id", protect, adminOnly, deleteMenuItem);
 
 module.exports = router;
