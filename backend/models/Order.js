@@ -1,4 +1,3 @@
-// backend/models/Order.js
 const mongoose = require("mongoose");
 
 const OrderItemSchema = new mongoose.Schema({
@@ -9,7 +8,7 @@ const OrderItemSchema = new mongoose.Schema({
   },
   quantity: { type: Number, required: true, default: 1 },
   note: { type: String, default: "" },
-  price: { type: Number, required: true }, // Pastikan harga disertakan
+  price: { type: Number, required: true },
 });
 
 const OrderSchema = new mongoose.Schema(
@@ -18,7 +17,7 @@ const OrderSchema = new mongoose.Schema(
     orderNumber: { type: String, required: true, unique: true },
     orderDate: { type: Date, default: Date.now },
     customerName: { type: String, required: true },
-    tableNumber: { type: Number }, // Nullable untuk Take Away
+    tableNumber: { type: Number },
     orderType: { type: String, enum: ["Dine In", "Take Away"], required: true },
     items: [OrderItemSchema],
     subtotal: { type: Number, required: true },
@@ -26,7 +25,8 @@ const OrderSchema = new mongoose.Schema(
     total: { type: Number, required: true },
     receivedAmount: { type: Number, required: true },
     change: { type: Number, required: true },
-    isArchived: { type: Boolean, default: false }, // Field baru
+    isArchived: { type: Boolean, default: false },
+    isPaid: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

@@ -1,4 +1,3 @@
-// src/pages/SalesReport.js
 import React, { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import { Calendar, RefreshCcw, Download, X } from "lucide-react";
@@ -6,10 +5,6 @@ import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 
-/**
- * Komponen modal: Detail satu order (TransactionDetail)
- * Menampilkan item dengan price & quantity, dsb.
- */
 const TransactionDetailModal = ({ order, onClose }) => {
   if (!order) return null;
 
@@ -25,7 +20,6 @@ const TransactionDetailModal = ({ order, onClose }) => {
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
       <div className="relative w-[350px] md:w-[400px] bg-white rounded-md shadow-md p-6">
-        {/* Tombol Close */}
         <button
           onClick={onClose}
           className="absolute top-4 right-4 text-gray-500 hover:text-gray-800"
@@ -37,7 +31,6 @@ const TransactionDetailModal = ({ order, onClose }) => {
           Transaction Detail
         </h2>
 
-        {/* Info Order */}
         <div className="text-sm text-gray-700 space-y-1">
           <p>
             <strong>No Order:</strong> {order.orderNumber}
@@ -56,16 +49,15 @@ const TransactionDetailModal = ({ order, onClose }) => {
 
         <hr className="my-3" />
 
-        {/* Items dengan price & quantity */}
         <div>
           {order.items.map((item, idx) => (
             <div key={idx} className="mb-3 text-sm">
               <div className="flex justify-between">
                 <span>{item.menuItem.name}</span>
-                <span>Rp {item.menuItem.price?.toLocaleString() || "0"}</span>
+                <span>Rp {item.price?.toLocaleString() || "0"}</span>
               </div>
               <div className="text-xs text-gray-500">
-                {item.quantity} x Rp {item.menuItem.price?.toLocaleString() || "0"}
+                {item.quantity} x Rp {item.price?.toLocaleString() || "0"}
               </div>
             </div>
           ))}
@@ -73,7 +65,6 @@ const TransactionDetailModal = ({ order, onClose }) => {
 
         <hr className="my-3" />
 
-        {/* Subtotal & Tax */}
         <div className="flex justify-between text-sm">
           <span>Sub Total</span>
           <span>Rp {order.subtotal?.toLocaleString() || "0"}</span>
@@ -85,7 +76,6 @@ const TransactionDetailModal = ({ order, onClose }) => {
 
         <hr className="my-3" />
 
-        {/* Total, Diterima, Kembalian */}
         <div className="flex justify-between text-lg font-semibold">
           <span>Total</span>
           <span>Rp {order.total?.toLocaleString() || "0"}</span>
@@ -102,12 +92,9 @@ const TransactionDetailModal = ({ order, onClose }) => {
     </div>
   );
 };
+
 const CategorySummaryModal = ({ categoryName, itemsData, onClose }) => {
-  // itemsData = [{name: "Gado-gado Spesial", total: 10}, ...]
-
   const [searchTerm, setSearchTerm] = useState("");
-
-  // Filter by search
   const filtered = itemsData.filter((it) =>
     it.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -115,17 +102,13 @@ const CategorySummaryModal = ({ categoryName, itemsData, onClose }) => {
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
       <div className="relative w-[400px] bg-white rounded-md shadow-md p-6">
-        {/* Tombol Close */}
         <button
           onClick={onClose}
           className="absolute top-4 right-4 text-gray-500 hover:text-gray-800"
         >
           <X className="w-5 h-5" />
         </button>
-
         <h2 className="text-xl font-bold mb-4 text-center">{categoryName}</h2>
-
-        {/* Search input */}
         <div className="mb-4">
           <input
             type="text"
@@ -135,8 +118,6 @@ const CategorySummaryModal = ({ categoryName, itemsData, onClose }) => {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-
-        {/* Tabel ringkasan */}
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -169,17 +150,15 @@ const CategorySummaryModal = ({ categoryName, itemsData, onClose }) => {
 };
 
 const SalesReport = () => {
-  // Filter state
+  // Filter
   const [startDate, setStartDate] = useState(null);
   const [finishDate, setFinishDate] = useState(null);
   const [category, setCategory] = useState("");
   const [orderType, setOrderType] = useState("");
   const [searchKeyword, setSearchKeyword] = useState("");
 
-  // Data original
+  // Data
   const [orders, setOrders] = useState([]);
-
-  // Data flatten (tiap item = satu baris)
   const [flatSales, setFlatSales] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
 
@@ -193,11 +172,9 @@ const SalesReport = () => {
     desserts: 0,
   });
 
-  // Modal Detail Transaksi
+  // Modals
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
-
-  // Modal Kategori (Foods / Beverages / Desserts)
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [categoryTitle, setCategoryTitle] = useState("");
   const [categoryItems, setCategoryItems] = useState([]);
@@ -222,7 +199,6 @@ const SalesReport = () => {
     // eslint-disable-next-line
   }, [startDate, finishDate, category, orderType, searchKeyword]);
 
-  // Menutup datepicker
   const handleClickOutside = (e) => {
     if (
       startCalendarRef.current &&
@@ -241,18 +217,16 @@ const SalesReport = () => {
       const res = await axios.get("/api/orders", {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = res.data || [];
+      // Filter agar hanya order yg isPaid=true (supaya ga double)
+      const paidOrders = (res.data || []).filter((o) => o.isPaid);
 
-      setOrders(data);
+      setOrders(paidOrders);
 
-      // Flatten the orders
-      const flat = flattenOrders(data);
+      const flat = flattenOrders(paidOrders);
       setFlatSales(flat);
 
-      // Calculate statistics using the flattened data
       calculateStats(flat);
 
-      // Apply filters on the flattened data
       const filtered = applySearchAndFilter(
         flat,
         searchKeyword,
@@ -271,8 +245,8 @@ const SalesReport = () => {
     }
   };
 
-  // Flatten
   const flattenOrders = (ordersArr) => {
+    // Flatten hanya order yg isPaid => sudah disaring di fetch
     return ordersArr.flatMap((ord) =>
       ord.items.map((it) => ({
         _orderId: ord._id,
@@ -282,30 +256,26 @@ const SalesReport = () => {
         orderType: ord.orderType,
         customerName: ord.customerName,
         tableNumber: ord.tableNumber,
-        itemName: it.menuItem.name,
-        itemCategory: it.menuItem.category,
-        price: it.menuItem.price,    // Ensure price is mapped
-        quantity: it.quantity,        // Ensure quantity is mapped
+        itemName: it.menuItem?.name || "(Deleted)",
+        itemCategory: it.menuItem?.category || "",
+        price: it.price || 0, // Gunakan it.price
+        quantity: it.quantity || 0,
       }))
     );
   };
 
   const calculateStats = (data) => {
-    // Calculate the number of unique orders
     const totalOrder = new Set(data.map((item) => item._orderId)).size;
-
-    // Calculate total omzet (revenue)
-    const totalOmzet = data.reduce((acc, item) => acc + item.price * item.quantity, 0);
-
-    // Calculate total menu sales
+    const totalOmzet = data.reduce(
+      (acc, item) => acc + item.price * item.quantity,
+      0
+    );
     const allMenuSales = data.reduce((acc, item) => acc + item.quantity, 0);
 
-    // Initialize counters
     let countFoods = 0;
     let countBeverages = 0;
     let countDesserts = 0;
 
-    // Calculate counts based on category
     data.forEach((item) => {
       const cat = (item.itemCategory || "").toLowerCase();
       if (cat.includes("food")) {
@@ -317,7 +287,6 @@ const SalesReport = () => {
       }
     });
 
-    // Update the stats state
     setStats({
       totalOrder,
       totalOmzet,
@@ -339,8 +308,8 @@ const SalesReport = () => {
     const lowerKeyword = keyword.toLowerCase();
 
     return flatData.filter((row) => {
-      // Filter tanggal
       const rowDate = new Date(row.orderDate).setHours(0, 0, 0, 0);
+
       if (startDt) {
         const startTime = new Date(startDt).setHours(0, 0, 0, 0);
         if (rowDate < startTime) return false;
@@ -350,21 +319,18 @@ const SalesReport = () => {
         if (rowDate > endTime) return false;
       }
 
-      // Filter category
       if (cat && cat !== "") {
         if (!row.itemCategory?.toLowerCase().includes(cat.toLowerCase())) {
           return false;
         }
       }
 
-      // Filter orderType
       if (oType && oType !== "") {
         if (!row.orderType.toLowerCase().includes(oType.toLowerCase())) {
           return false;
         }
       }
 
-      // Search
       const matchOrderNumber = row.orderNumber
         .toLowerCase()
         .includes(lowerKeyword);
@@ -385,7 +351,6 @@ const SalesReport = () => {
     });
   };
 
-  // Tanggal
   const handleDateSelect = (date, type) => {
     if (type === "start") {
       setStartDate(date);
@@ -396,7 +361,6 @@ const SalesReport = () => {
     }
   };
 
-  // Reset
   const resetFilters = () => {
     setStartDate(null);
     setFinishDate(null);
@@ -404,11 +368,9 @@ const SalesReport = () => {
     setOrderType("");
     setSearchKeyword("");
     setCurrentPage(1);
-
     setFilteredData(flatSales);
   };
 
-  // Tekan tombol search
   const handleSearch = () => {
     const filtered = applySearchAndFilter(
       flatSales,
@@ -422,7 +384,6 @@ const SalesReport = () => {
     setCurrentPage(1);
   };
 
-  // Export Excel (tambahkan kolom price & quantity)
   const exportToExcel = () => {
     if (filteredData.length === 0) {
       alert("No data to export");
@@ -459,7 +420,6 @@ const SalesReport = () => {
     XLSX.writeFile(wb, "SalesReport.xlsx");
   };
 
-  // Export PDF (punya price & quantity)
   const exportToPDF = () => {
     if (filteredData.length === 0) {
       alert("No data to export");
@@ -517,53 +477,50 @@ const SalesReport = () => {
     doc.save("SalesReport.pdf");
   };
 
-  // Buka modal detail order
   const openDetailModal = (originalOrder) => {
     setSelectedOrder(originalOrder);
     setShowDetailModal(true);
   };
 
-  // Tutup detail order
   const closeDetailModal = () => {
     setSelectedOrder(null);
     setShowDetailModal(false);
   };
 
-  // Buka modal ringkasan per kategori (Foods, dsb.)
-  // Kita akan membuat summary => {name, total}, lalu set ke state.
   const handleOpenCategorySummary = (catType) => {
-    // catType = "Foods" atau "Beverages" atau "Desserts"
-    let catLower = catType.toLowerCase(); // "foods" => "food"
+    let catLower = catType.toLowerCase();
 
-    // 1) Kumpulkan items dari `orders`
-    //    yang termasuk category itu (food / beverage / dessert).
-    // 2) Buat summary by itemName => total quantity
-    const summaryMap = new Map(); // key = itemName, value = total
-
+    // Hanya summary dari orders yang sudah di filter isPaid
+    const summaryMap = new Map();
     orders.forEach((ord) => {
       ord.items.forEach((it) => {
         const c = (it.menuItem.category || "").toLowerCase();
-        // Samakan logika dengan stats
         if (catLower.includes("food") && c.includes("food")) {
-          summaryMap.set(it.menuItem.name, (summaryMap.get(it.menuItem.name) || 0) + it.quantity);
+          summaryMap.set(
+            it.menuItem.name,
+            (summaryMap.get(it.menuItem.name) || 0) + it.quantity
+          );
         } else if (catLower.includes("beverage") && c.includes("beverage")) {
-          summaryMap.set(it.menuItem.name, (summaryMap.get(it.menuItem.name) || 0) + it.quantity);
+          summaryMap.set(
+            it.menuItem.name,
+            (summaryMap.get(it.menuItem.name) || 0) + it.quantity
+          );
         } else if (catLower.includes("dessert") && c.includes("dessert")) {
-          summaryMap.set(it.menuItem.name, (summaryMap.get(it.menuItem.name) || 0) + it.quantity);
+          summaryMap.set(
+            it.menuItem.name,
+            (summaryMap.get(it.menuItem.name) || 0) + it.quantity
+          );
         }
       });
     });
 
-    // 3) Konversi summaryMap => array of {name, total}
     const catArr = [];
     for (let [key, val] of summaryMap.entries()) {
       catArr.push({ name: key, total: val });
     }
-    // 4) Urutkan (descending)
     catArr.sort((a, b) => b.total - a.total);
 
-    // 5) Tampilkan modal
-    setCategoryTitle(catType); // "Foods" dsb.
+    setCategoryTitle(catType);
     setCategoryItems(catArr);
     setShowCategoryModal(true);
   };
@@ -574,7 +531,6 @@ const SalesReport = () => {
     setCategoryItems([]);
   };
 
-  // Pagination calculations
   const indexOfLastEntry = currentPage * entriesPerPage;
   const indexOfFirstEntry = indexOfLastEntry - entriesPerPage;
   const currentEntries = filteredData.slice(
@@ -585,11 +541,7 @@ const SalesReport = () => {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Header */}
-
-      {/* Main Content */}
       <main className="p-6">
-        {/* Header Section */}
         <div className="mb-6">
           <h1 className="text-xl font-semibold">Sales Report</h1>
           <p className="text-sm text-gray-500">
@@ -602,7 +554,6 @@ const SalesReport = () => {
           </p>
         </div>
 
-        {/* Stats */}
         <div className="mb-8 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
           <div className="rounded-lg border p-4">
             <div className="text-sm text-gray-500">Total Order</div>
@@ -619,7 +570,6 @@ const SalesReport = () => {
             <div className="text-2xl font-semibold">{stats.allMenuSales}</div>
           </div>
 
-          {/* Kotak Foods --> onClick => buka modal ringkasan Foods */}
           <div
             className="rounded-lg border p-4 cursor-pointer hover:bg-gray-50"
             onClick={() => handleOpenCategorySummary("Foods")}
@@ -628,7 +578,6 @@ const SalesReport = () => {
             <div className="text-2xl font-semibold">{stats.foods}</div>
           </div>
 
-          {/* Kotak Beverages --> buka modal ringkasan Beverages */}
           <div
             className="rounded-lg border p-4 cursor-pointer hover:bg-gray-50"
             onClick={() => handleOpenCategorySummary("Beverages")}
@@ -637,7 +586,6 @@ const SalesReport = () => {
             <div className="text-2xl font-semibold">{stats.beverages}</div>
           </div>
 
-          {/* Kotak Desserts --> buka modal ringkasan Desserts */}
           <div
             className="rounded-lg border p-4 cursor-pointer hover:bg-gray-50"
             onClick={() => handleOpenCategorySummary("Desserts")}
@@ -823,7 +771,7 @@ const SalesReport = () => {
           </div>
         </div>
 
-        {/* Tabel utama: HANYA menampilkan kolom ringkas, tanpa Price & Quantity */}
+        {/* Tabel Utama */}
         <div className="rounded-lg border overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -923,7 +871,6 @@ const SalesReport = () => {
         </div>
       </main>
 
-      {/* MODAL DETAIL ORDER */}
       {showDetailModal && (
         <TransactionDetailModal
           order={selectedOrder}
@@ -931,11 +878,10 @@ const SalesReport = () => {
         />
       )}
 
-      {/* MODAL CATEGORY SUMMARY */}
       {showCategoryModal && (
         <CategorySummaryModal
           categoryName={categoryTitle}
-          itemsData={categoryItems} // array of {name, total}
+          itemsData={categoryItems}
           onClose={closeCategoryModal}
         />
       )}

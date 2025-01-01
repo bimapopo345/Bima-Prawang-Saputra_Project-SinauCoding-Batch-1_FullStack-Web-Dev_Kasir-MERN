@@ -1,9 +1,6 @@
 const Order = require("../models/Order");
 const MenuItem = require("../models/MenuItem");
 
-// Create Order
-// backend/controllers/orderController.js
-
 const createOrder = async (req, res) => {
   try {
     const {
@@ -18,10 +15,10 @@ const createOrder = async (req, res) => {
       total,
       receivedAmount,
       change,
-      isArchived, // Pastikan ini ditangani
+      isArchived,
+      isPaid,
     } = req.body;
 
-    // Validasi dasar
     if (
       !orderNumber ||
       !customerName ||
@@ -34,18 +31,15 @@ const createOrder = async (req, res) => {
       return res.status(400).json({ message: "Semua bidang wajib diisi." });
     }
 
-    // Validasi setiap item
     for (const item of items) {
       if (!item.menuItem || !item.quantity || !item.price) {
-        return res.status(400).json({
-          message: "Setiap item harus memiliki menuItem, quantity, dan price.",
-        });
+        return res
+          .status(400)
+          .json({
+            message:
+              "Setiap item harus memiliki menuItem, quantity, dan price.",
+          });
       }
-      // Tambahkan validasi tambahan jika diperlukan
-    }
-
-    // Pastikan menuItem valid dan ada di database
-    for (const item of items) {
       const menuItemExists = await MenuItem.findById(item.menuItem);
       if (!menuItemExists) {
         return res.status(400).json({
@@ -67,7 +61,8 @@ const createOrder = async (req, res) => {
       total,
       receivedAmount,
       change,
-      isArchived: isArchived || false, // Default ke false jika tidak disertakan
+      isArchived: isArchived || false,
+      isPaid: isPaid || false,
     });
 
     await order.save();
@@ -79,7 +74,6 @@ const createOrder = async (req, res) => {
   }
 };
 
-// Get All Orders
 const getAllOrders = async (req, res) => {
   try {
     const orders = await Order.find({ user: req.user._id }).populate(
@@ -91,7 +85,6 @@ const getAllOrders = async (req, res) => {
   }
 };
 
-// Get Single Order
 const getOrderById = async (req, res) => {
   const { id } = req.params;
   try {
@@ -108,7 +101,6 @@ const getOrderById = async (req, res) => {
   }
 };
 
-// Update Order (e.g., Add/Edit Notes)
 const updateOrder = async (req, res) => {
   const { id } = req.params;
   const { items } = req.body;
@@ -121,9 +113,7 @@ const updateOrder = async (req, res) => {
       return res.status(401).json({ message: "Not authorized" });
     }
 
-    // Update items
     order.items = items;
-
     await order.save();
     res.json(order);
   } catch (error) {
@@ -131,7 +121,6 @@ const updateOrder = async (req, res) => {
   }
 };
 
-// Delete Order
 const deleteOrder = async (req, res) => {
   const { id } = req.params;
   try {
@@ -149,7 +138,7 @@ const deleteOrder = async (req, res) => {
     res.status(500).json({ message: "Server Error" });
   }
 };
-// Archive Order
+
 const archiveOrder = async (req, res) => {
   const { id } = req.params;
   try {
@@ -162,6 +151,7 @@ const archiveOrder = async (req, res) => {
     }
 
     order.isArchived = true;
+    order.isPaid = false;
     await order.save();
 
     res.json({ message: "Order archived successfully" });
@@ -170,7 +160,6 @@ const archiveOrder = async (req, res) => {
   }
 };
 
-// Restore Archived Order
 const restoreArchivedOrder = async (req, res) => {
   const { id } = req.params;
   try {
@@ -182,7 +171,8 @@ const restoreArchivedOrder = async (req, res) => {
       return res.status(401).json({ message: "Not authorized" });
     }
 
-    order.isArchived = false; // Ubah status ke tidak diarsipkan
+    order.isArchived = false;
+    order.isPaid = false;
     await order.save();
 
     res.json({ message: "Order restored successfully" });
@@ -192,13 +182,12 @@ const restoreArchivedOrder = async (req, res) => {
   }
 };
 
-// Get Archived Orders
 const getArchivedOrders = async (req, res) => {
   try {
     const orders = await Order.find({
       user: req.user._id,
       isArchived: true,
-    }).populate("items.menuItem"); // Pastikan ini ada
+    }).populate("items.menuItem");
     res.json(orders);
   } catch (error) {
     console.error("Error fetching archived orders:", error);
@@ -221,11 +210,9 @@ const reorderOrder = async (req, res) => {
       return res.status(400).json({ message: "Order is not archived." });
     }
 
-    // Buat nomor pesanan unik baru
     const newOrderNumber = "ORD#" + Date.now().toString().slice(-8);
     const newOrderDate = new Date().toISOString();
 
-    // Format items untuk pesanan baru
     const newItems = archivedOrder.items.map((item) => ({
       menuItem: item.menuItem._id,
       quantity: item.quantity,
@@ -233,7 +220,6 @@ const reorderOrder = async (req, res) => {
       price: item.price,
     }));
 
-    // Hitung subtotal, tax, total
     const subtotal = newItems.reduce(
       (sum, item) => sum + item.price * item.quantity,
       0
@@ -254,7 +240,8 @@ const reorderOrder = async (req, res) => {
       total,
       receivedAmount: 0,
       change: 0,
-      isArchived: false, // Pesanan baru tidak diarsipkan
+      isArchived: false,
+      isPaid: false,
     });
 
     await newOrder.save();

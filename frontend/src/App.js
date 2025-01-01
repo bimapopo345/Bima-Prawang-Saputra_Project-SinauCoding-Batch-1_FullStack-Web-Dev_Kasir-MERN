@@ -1,4 +1,3 @@
-// frontend/src/App.js
 import React, { useState } from "react";
 import {
   BrowserRouter as Router,
@@ -23,7 +22,6 @@ import ConfirmResetPassword from "./pages/ConfirmResetPassword";
 import OrderArchiveModal from "./components/OrderArchiveModal";
 import Catalog from "./pages/Catalog"; // Pastikan file ini ada
 
-// Interceptor untuk menambahkan token ke setiap request
 axios.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("token");
@@ -48,12 +46,10 @@ function App() {
   const handleLogout = () => {
     localStorage.removeItem("token");
     setToast({ type: "info", message: "Logged out successfully" });
-    // Redirect ke /login (pakai reload agar bersih)
     window.location.href = "/login";
   };
 
   const handleOrderArchive = () => {
-    // Contoh data statis
     setArchivedOrders([
       {
         _id: "ORD#12345678",
@@ -94,10 +90,6 @@ function App() {
   );
 }
 
-/**
- * Pisahkan isi utama ke komponen supaya kita bisa
- * memakai useLocation di level "dalam" tanpa merusak struktur.
- */
 const AppContent = ({
   toast,
   setToast,
@@ -109,26 +101,20 @@ const AppContent = ({
   archivedOrders,
   handleOrderArchive,
 }) => {
-  // Cek path
   const location = useLocation();
-  // Halaman2 auth di mana header & sidebar tidak ditampilkan:
   const authPaths = [
     "/login",
     "/register",
     "/reset-password",
     "/reset-password/confirm",
   ];
-  // Boolean => true jika di route auth
   const isAuthPage = authPaths.includes(location.pathname);
 
   return (
     <div className="flex">
-      {/* Jika BUKAN halaman auth, tampilkan Sidebar */}
-      {!isAuthPage && <Sidebar /* boleh pakai isSidebarOpen dsb. */ />}
+      {!isAuthPage && <Sidebar />}
 
-      {/* Bagian kanan: Header + main */}
       <div className="flex-1 flex flex-col">
-        {/* Jika BUKAN halaman auth, tampilkan Header */}
         {!isAuthPage && (
           <Header
             onSidebarToggle={handleSidebarToggle}
@@ -138,7 +124,6 @@ const AppContent = ({
         )}
 
         <main className="flex-1 overflow-y-auto p-4">
-          {/* Toast */}
           {toast && (
             <div
               className={`fixed top-5 right-5 z-50 ${
@@ -153,9 +138,7 @@ const AppContent = ({
             </div>
           )}
 
-          {/* Routes */}
           <Routes>
-            {/* Dashboard */}
             <Route
               path="/"
               element={
@@ -165,7 +148,6 @@ const AppContent = ({
               }
             />
 
-            {/* Kasir */}
             <Route
               path="/kasir"
               element={
@@ -175,7 +157,6 @@ const AppContent = ({
               }
             />
 
-            {/* Sales Report */}
             <Route
               path="/sales-report"
               element={
@@ -185,7 +166,6 @@ const AppContent = ({
               }
             />
 
-            {/* Settings */}
             <Route
               path="/settings"
               element={
@@ -195,7 +175,6 @@ const AppContent = ({
               }
             />
 
-            {/* Catalog */}
             <Route
               path="/catalog"
               element={
@@ -205,7 +184,6 @@ const AppContent = ({
               }
             />
 
-            {/* Auth pages */}
             <Route path="/login" element={<Login setToast={setToast} />} />
             <Route
               path="/register"
@@ -219,24 +197,20 @@ const AppContent = ({
               path="/reset-password/confirm"
               element={<ConfirmResetPassword setToast={setToast} />}
             />
-
-            {/* Redirect semua route yang tidak dikenali ke Dashboard atau Login */}
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </main>
       </div>
 
-      {/* Order Archive Modal */}
       <OrderArchiveModal
         isOpen={isOrderArchiveOpen}
         onClose={() => setIsOrderArchiveOpen(false)}
-        orders={archivedOrders}
+        onRestore={() => {}}
       />
     </div>
   );
 };
 
-// Private Route
 const PrivateRoute = ({ children }) => {
   const token = localStorage.getItem("token");
   return token ? children : <Navigate to="/login" />;

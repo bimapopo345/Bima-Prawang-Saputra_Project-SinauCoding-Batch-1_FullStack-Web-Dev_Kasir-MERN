@@ -1,5 +1,3 @@
-// frontend/src/pages/Kasir.js
-
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import EditNoteModal from "../components/EditNoteModal";
@@ -14,17 +12,14 @@ const Kasir = ({ setToast }) => {
   const [tableNumber, setTableNumber] = useState("");
   const [receivedAmount, setReceivedAmount] = useState(0);
 
-  // Modals
   const [editNoteModalOpen, setEditNoteModalOpen] = useState(false);
   const [currentEditOrder, setCurrentEditOrder] = useState(null);
 
   const [successModalOpen, setSuccessModalOpen] = useState(false);
   const [successDetails, setSuccessDetails] = useState(null);
 
-  // State for Order Archive Modal
   const [orderArchiveModalOpen, setOrderArchiveModalOpen] = useState(false);
 
-  // Fetch Menu Items once
   useEffect(() => {
     fetchMenuItems();
   }, []);
@@ -124,6 +119,7 @@ const Kasir = ({ setToast }) => {
               <p className="text-sm text-gray-500 italic">{order.note}</p>
             )}
             <div className="flex items-center text-gray-500 text-sm space-x-2 mt-1">
+              {/* Pastikan pakai order.price, bukan order.menuItem?.price */}
               <span>Rp {order.price.toLocaleString()}</span>
               <button
                 onClick={() => openEditNoteModal(key)}
@@ -186,16 +182,16 @@ const Kasir = ({ setToast }) => {
       return;
     }
 
-    const receivedAmountTemp = receivedAmount;
     let subtotal = 0;
-    for (const key in orders) {
+    Object.keys(orders).forEach((key) => {
       subtotal += orders[key].price * orders[key].quantity;
-    }
+    });
+
     const tax = Math.round(subtotal * 0.1);
     const total = subtotal + tax;
-    const change = receivedAmountTemp - total;
+    const change = receivedAmount - total;
 
-    if (receivedAmountTemp < total) {
+    if (receivedAmount < total) {
       setToast({
         type: "error",
         message: "Jumlah diterima kurang dari total",
@@ -206,11 +202,12 @@ const Kasir = ({ setToast }) => {
     const orderNumber = "ORD#" + Date.now().toString().slice(-8);
     const orderDate = new Date().toISOString();
 
+    // Gunakan price dari state
     const formattedItems = Object.values(orders).map((item) => ({
       menuItem: item._id,
       quantity: item.quantity,
       note: item.note || "",
-      price: item.price,
+      price: item.price, // Penting: Gunakan item.price
     }));
 
     const orderDetails = {
@@ -223,8 +220,9 @@ const Kasir = ({ setToast }) => {
       subtotal,
       tax,
       total,
-      receivedAmount: receivedAmountTemp,
+      receivedAmount,
       change,
+      isPaid: true,
     };
 
     try {
@@ -274,16 +272,23 @@ const Kasir = ({ setToast }) => {
     }
 
     try {
-      const token = localStorage.getItem("token");
       const orderNumber = "ORD#" + Date.now().toString().slice(-8);
       const orderDate = new Date().toISOString();
 
+      // Gunakan price dari state
       const formattedItems = Object.values(orders).map((item) => ({
         menuItem: item._id,
         quantity: item.quantity,
         note: item.note || "",
-        price: item.price,
+        price: item.price, // Penting: Gunakan item.price
       }));
+
+      const subtotal = Object.values(orders).reduce(
+        (sum, item) => sum + item.price * item.quantity,
+        0
+      );
+      const tax = Math.round(subtotal * 0.1);
+      const total = subtotal + tax;
 
       const archivedOrder = {
         orderNumber,
@@ -291,28 +296,17 @@ const Kasir = ({ setToast }) => {
         customerName,
         orderType,
         tableNumber: orderType === "Dine In" ? tableNumber : null,
-        items: formattedItems,
-        subtotal: Object.values(orders).reduce(
-          (sum, item) => sum + item.price * item.quantity,
-          0
-        ),
-        tax: Math.round(
-          Object.values(orders).reduce(
-            (sum, item) => sum + item.price * item.quantity,
-            0
-          ) * 0.1
-        ),
-        total: Math.round(
-          Object.values(orders).reduce(
-            (sum, item) => sum + item.price * item.quantity,
-            0
-          ) * 1.1
-        ),
+        items: formattedItems, // include price
+        subtotal,
+        tax,
+        total,
         receivedAmount: 0,
         change: 0,
         isArchived: true,
+        isPaid: false,
       };
 
+      const token = localStorage.getItem("token");
       const res = await axios.post("/api/orders", archivedOrder, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -349,57 +343,69 @@ const Kasir = ({ setToast }) => {
     }
   };
 
-  const handleRestoreOrder = (order) => {
-    if (!order.items || !order.items.length) {
+  const handleRestoreOrder = async (order) => {
+    try {
+      const token = localStorage.getItem("token");
+      // Panggil endpoint restore untuk ubah isArchived jadi false di DB
+      await axios.post(
+        `/api/orders/${order._id}/restore`,
+        {},
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      // Biar nama & nomor meja balik juga
+      setCustomerName(order.customerName || "");
+      setTableNumber(order.tableNumber || "");
+
+      // Kembalikan item2 ke state orders, pastikan pakai item.price
+      const restoredOrders = { ...orders };
+      if (order.items && order.items.length) {
+        order.items.forEach((item) => {
+          if (item.menuItem && item.menuItem._id) {
+            const menuItemId = item.menuItem._id;
+            const menuItemName = item.menuItem.name || "(Deleted)";
+            const menuItemCategory = item.menuItem.category || "";
+            const menuItemImage =
+              item.menuItem.image || "/uploads/default-menu.png";
+
+            // Harga custom yang sudah diarsipkan
+            const archivedPrice = item.price; // <-- inilah yang penting
+
+            if (restoredOrders[menuItemId]) {
+              restoredOrders[menuItemId].quantity += item.quantity;
+              if (item.note) {
+                restoredOrders[menuItemId].note = item.note;
+              }
+            } else {
+              restoredOrders[menuItemId] = {
+                _id: menuItemId,
+                name: menuItemName,
+                price: archivedPrice, // pakai price dari arsip
+                quantity: item.quantity,
+                note: item.note || "",
+                image: menuItemImage,
+                category: menuItemCategory,
+              };
+            }
+          }
+        });
+      }
+
+      setOrders(restoredOrders);
+      setToast({
+        type: "success",
+        message: "Pesanan berhasil dikembalikan ke keranjang.",
+      });
+      setOrderArchiveModalOpen(false);
+    } catch (error) {
+      console.error("Error restoring order:", error);
       setToast({
         type: "error",
-        message: "Pesanan yang diarsipkan tidak memiliki item.",
+        message: "Gagal mengembalikan pesanan dari arsip.",
       });
-      return;
     }
-
-    const restoredOrders = { ...orders };
-
-    order.items.forEach((item) => {
-      if (!item.menuItem || !item.menuItem._id) {
-        console.error("MenuItem tidak terisi dengan benar:", item);
-        setToast({
-          type: "error",
-          message: "Pesanan yang diarsipkan memiliki item yang tidak valid.",
-        });
-        return;
-      }
-
-      const menuItemId = item.menuItem._id;
-      const menuItemName = item.menuItem.name;
-      const menuItemPrice = item.menuItem.price;
-      const menuItemImage = item.menuItem.image || "/uploads/default-menu.png";
-      const menuItemCategory = item.menuItem.category || "";
-
-      if (restoredOrders[menuItemId]) {
-        restoredOrders[menuItemId].quantity += item.quantity;
-        if (item.note) {
-          restoredOrders[menuItemId].note = item.note;
-        }
-      } else {
-        restoredOrders[menuItemId] = {
-          _id: menuItemId,
-          name: menuItemName,
-          price: menuItemPrice,
-          quantity: item.quantity,
-          note: item.note || "",
-          image: menuItemImage,
-          category: menuItemCategory,
-        };
-      }
-    });
-
-    setOrders(restoredOrders);
-    setToast({
-      type: "success",
-      message: "Pesanan berhasil dikembalikan ke keranjang.",
-    });
-    setOrderArchiveModalOpen(false);
   };
 
   return (
@@ -407,9 +413,8 @@ const Kasir = ({ setToast }) => {
       <h1 className="text-2xl font-bold mb-4">Kasir</h1>
 
       <div className="flex flex-col md:flex-row">
-        {/* Bagian kiri: Menu Items */}
+        {/* Bagian Kiri: Menu Items */}
         <div className="md:w-2/3">
-          {/* Category Tabs */}
           <div className="flex space-x-4 mb-6 overflow-x-auto pb-2">
             <button
               onClick={() => handleCategoryFilter("All Menu")}
@@ -437,7 +442,6 @@ const Kasir = ({ setToast }) => {
             </button>
           </div>
 
-          {/* Menu Grid */}
           <div
             id="menu-grid"
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
@@ -503,12 +507,11 @@ const Kasir = ({ setToast }) => {
           </div>
         </div>
 
-        {/* Bagian kanan: Cart / Orders */}
+        {/* Bagian Kanan: Cart */}
         <div className="md:w-1/3 md:ml-6 bg-white rounded-xl shadow-sm p-6 mt-8 md:mt-0">
           <h2 className="text-xl font-semibold mb-6">List Order</h2>
 
           <div className="space-y-6">
-            {/* DineIn / TakeAway */}
             <div className="flex gap-4">
               <button
                 onClick={() => handleOrderType("Dine In")}
@@ -575,11 +578,10 @@ const Kasir = ({ setToast }) => {
               )}
             </div>
 
-            {/* List of Orders */}
             <div className="border-t pt-6">
               <div id="order-list">{renderOrderList()}</div>
 
-              {/* Price Summary */}
+              {/* Subtotal, Tax, Total */}
               <div className="mt-4 space-y-2 text-sm">
                 <div className="flex justify-between text-gray-600">
                   <span>Sub Total</span>
@@ -709,14 +711,14 @@ const Kasir = ({ setToast }) => {
         />
       )}
 
-      {/* Order Archive Modal */}
+      {/* Archive Modal */}
       <OrderArchiveModal
         isOpen={orderArchiveModalOpen}
         onClose={() => setOrderArchiveModalOpen(false)}
-        onRestore={handleRestoreOrder} // Pastikan ini adalah fungsi
+        onRestore={handleRestoreOrder}
       />
 
-      {/* Button to open Order Archive Modal */}
+      {/* Tombol buka Archive Modal */}
       <button
         onClick={() => setOrderArchiveModalOpen(true)}
         className="fixed bottom-5 right-5 bg-green-600 text-white p-3 rounded-full shadow-lg hover:bg-green-700"

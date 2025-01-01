@@ -1,5 +1,3 @@
-// frontend/src/components/OrderArchiveModal.js
-
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 
@@ -32,7 +30,7 @@ const OrderArchiveModal = ({ isOpen, onClose, onRestore }) => {
   };
 
   const handleRestore = (order) => {
-    onRestore(order); // Pastikan onRestore adalah fungsi yang diteruskan dari parent
+    onRestore(order);
     setArchivedOrders((prev) => prev.filter((o) => o._id !== order._id));
     setError(null);
   };
@@ -82,6 +80,7 @@ const OrderArchiveModal = ({ isOpen, onClose, onRestore }) => {
                       <div className="text-sm text-gray-500">
                         {new Date(order.orderDate).toLocaleString("id-ID")}
                       </div>
+
                       <div className="mt-2">
                         {order.items.map((item, index) => (
                           <div
@@ -93,14 +92,13 @@ const OrderArchiveModal = ({ isOpen, onClose, onRestore }) => {
                               {item.note ? ` - ${item.note}` : ""}
                             </span>
                             <span>
-                              Rp{" "}
-                              {(
-                                (item.menuItem?.price || 0) * item.quantity
-                              ).toLocaleString()}
+                              {/* Gunakan item.price, bukan menuItem.price */}
+                              Rp {(item.price * item.quantity).toLocaleString()}
                             </span>
                           </div>
                         ))}
                       </div>
+
                       <div className="flex justify-between font-semibold mt-2">
                         <span>Total:</span>
                         <span>Rp {order.total.toLocaleString()}</span>

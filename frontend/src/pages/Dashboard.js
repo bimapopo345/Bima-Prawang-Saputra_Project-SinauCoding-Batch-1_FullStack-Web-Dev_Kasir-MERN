@@ -1,4 +1,3 @@
-// src/pages/Dashboard.js
 import React, { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import { Bar } from "react-chartjs-2";
@@ -22,9 +21,6 @@ ChartJS.register(
   Legend
 );
 
-/**
- * Modal ringkasan kategori
- */
 const CategorySummaryModal = ({ categoryName, itemsData, onClose }) => {
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -85,18 +81,11 @@ const CategorySummaryModal = ({ categoryName, itemsData, onClose }) => {
 };
 
 const Dashboard = () => {
-  // States filter
   const [startDate, setStartDate] = useState(null);
   const [finishDate, setFinishDate] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState("");
-
-  // Data orders (full)
   const [orders, setOrders] = useState([]);
-
-  // Data filtered (local)
   const [filteredOrders, setFilteredOrders] = useState([]);
-
-  // Stats
   const [stats, setStats] = useState({
     totalOrders: 0,
     totalOmzet: 0,
@@ -105,22 +94,17 @@ const Dashboard = () => {
     beverages: 0,
     desserts: 0,
   });
-
-  // Chart
   const [chartData, setChartData] = useState(null);
 
-  // Modal category
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [categoryTitle, setCategoryTitle] = useState("");
   const [categoryItems, setCategoryItems] = useState([]);
 
-  // Calendar refs
   const startCalendarRef = useRef(null);
   const endCalendarRef = useRef(null);
   const [showStartCalendar, setShowStartCalendar] = useState(false);
   const [showEndCalendar, setShowEndCalendar] = useState(false);
 
-  // UseEffect => fetch once
   useEffect(() => {
     fetchAllOrders();
     document.addEventListener("mousedown", handleClickOutside);
@@ -130,7 +114,6 @@ const Dashboard = () => {
     // eslint-disable-next-line
   }, []);
 
-  // UseEffect => apply filter every time startDate/finishDate/selectedCategory changes
   useEffect(() => {
     const filtered = applyLocalFilter(
       orders,
@@ -140,7 +123,6 @@ const Dashboard = () => {
     );
     setFilteredOrders(filtered);
 
-    // Hitung stats & chart pakai data filtered
     const newStats = calculateStats(filtered);
     setStats(newStats);
 
@@ -160,7 +142,6 @@ const Dashboard = () => {
     }
   };
 
-  // Fungsi untuk mengambil semua data pesanan
   const fetchAllOrders = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -169,7 +150,6 @@ const Dashboard = () => {
         window.location.href = "/login";
         return;
       }
-
       const res = await axios.get("/api/orders", {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -178,7 +158,9 @@ const Dashboard = () => {
     } catch (error) {
       console.error("Error fetching orders:", error);
       if (error.response && error.response.status === 401) {
-        alert("Token tidak valid atau telah kadaluarsa. Silakan login kembali.");
+        alert(
+          "Token tidak valid atau telah kadaluarsa. Silakan login kembali."
+        );
         window.location.href = "/login";
       } else {
         alert(
@@ -189,10 +171,9 @@ const Dashboard = () => {
     }
   };
 
-  // Fungsi untuk memfilter data pesanan berdasarkan filter yang dipilih
   const applyLocalFilter = (ordersArr, stDate, finDate, cat) => {
     return ordersArr.filter((ord) => {
-      // Tanggal
+      if (!ord.isPaid) return false;
       const orderDay = new Date(ord.orderDate).setHours(0, 0, 0, 0);
 
       if (stDate) {
@@ -204,19 +185,16 @@ const Dashboard = () => {
         if (orderDay > fn) return false;
       }
 
-      // Category => cek di items
       if (cat && cat !== "") {
         const matchItem = ord.items.some((it) =>
           (it.menuItem.category || "").toLowerCase().includes(cat.toLowerCase())
         );
         if (!matchItem) return false;
       }
-
       return true;
     });
   };
 
-  // Fungsi untuk menghitung statistik
   const calculateStats = (filteredArr) => {
     const totalOrders = filteredArr.length;
     const totalOmzet = filteredArr.reduce((sum, o) => sum + o.total, 0);
@@ -245,7 +223,6 @@ const Dashboard = () => {
     };
   };
 
-  // Fungsi untuk membangun data chart
   const buildChartData = (filteredArr) => {
     const dayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
     const dailyMap = {};
@@ -256,7 +233,7 @@ const Dashboard = () => {
 
     filteredArr.forEach((ord) => {
       const d = new Date(ord.orderDate);
-      const dow = d.getDay(); // 0 = Sunday
+      const dow = d.getDay();
       const label = dayOfWeekMap[dow];
 
       ord.items.forEach((it) => {
@@ -274,7 +251,6 @@ const Dashboard = () => {
       });
     });
 
-    // Compose data array
     const foodData = dayLabels.map((d) => dailyMap[d].food);
     const beverageData = dayLabels.map((d) => dailyMap[d].beverage);
     const dessertData = dayLabels.map((d) => dailyMap[d].dessert);
@@ -289,12 +265,10 @@ const Dashboard = () => {
     };
   };
 
-  // Fungsi untuk membuka modal ringkasan kategori
   const handleOpenCategorySummary = (catType) => {
     const cat = catType.toLowerCase();
     const summaryMap = new Map();
 
-    // Gunakan filteredOrders agar sesuai filter
     filteredOrders.forEach((ord) => {
       ord.items.forEach((it) => {
         const c = (it.menuItem.category || "").toLowerCase();
@@ -321,13 +295,13 @@ const Dashboard = () => {
     setCategoryItems(arr);
     setShowCategoryModal(true);
   };
+
   const closeCategoryModal = () => {
     setShowCategoryModal(false);
     setCategoryTitle("");
     setCategoryItems([]);
   };
 
-  // Handler date pick
   const handleStartDateClick = () => {
     setShowStartCalendar(!showStartCalendar);
   };
@@ -347,7 +321,6 @@ const Dashboard = () => {
     setSelectedCategory(e.target.value);
   };
 
-  // chart options
   const chartOptions = {
     responsive: true,
     plugins: {
@@ -359,33 +332,27 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 p-4">
-      {/* Tanggal di pojok kanan */}
       <div className="flex justify-end mb-2 text-sm text-gray-500">
         Today, Kamis 19 Desember 2024
       </div>
 
       <h1 className="text-xl font-bold mb-4">Dashboard</h1>
 
-      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
-        {/* Total Orders */}
         <div className="border rounded-lg p-4 bg-white">
           <div className="text-sm text-gray-500">Total Orders</div>
           <div className="text-2xl font-bold">{stats.totalOrders}</div>
         </div>
-        {/* Total Omzet */}
         <div className="border rounded-lg p-4 bg-white">
           <div className="text-sm text-gray-500">Total Omzet</div>
           <div className="text-2xl font-bold">
             Rp {stats.totalOmzet.toLocaleString()}
           </div>
         </div>
-        {/* All Menu Orders */}
         <div className="border rounded-lg p-4 bg-white">
           <div className="text-sm text-gray-500">All Menu Orders</div>
           <div className="text-2xl font-bold">{stats.allMenuOrders}</div>
         </div>
-        {/* Foods -> onClick => buka modal */}
         <div
           className="border rounded-lg p-4 bg-white cursor-pointer hover:bg-gray-50"
           onClick={() => handleOpenCategorySummary("Food")}
@@ -393,7 +360,6 @@ const Dashboard = () => {
           <div className="text-sm text-gray-500">Foods</div>
           <div className="text-2xl font-bold">{stats.foods}</div>
         </div>
-        {/* Beverages */}
         <div
           className="border rounded-lg p-4 bg-white cursor-pointer hover:bg-gray-50"
           onClick={() => handleOpenCategorySummary("Beverage")}
@@ -401,7 +367,6 @@ const Dashboard = () => {
           <div className="text-sm text-gray-500">Beverages</div>
           <div className="text-2xl font-bold">{stats.beverages}</div>
         </div>
-        {/* Desserts */}
         <div
           className="border rounded-lg p-4 bg-white cursor-pointer hover:bg-gray-50"
           onClick={() => handleOpenCategorySummary("Dessert")}
@@ -411,13 +376,10 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Chart Section */}
       <div className="bg-white p-4 rounded-lg">
         <h2 className="text-lg font-semibold mb-4">Total Omzet</h2>
 
-        {/* Filter Bar */}
         <div className="flex flex-col md:flex-row items-start md:items-center gap-4 mb-4">
-          {/* Start date */}
           <div className="relative" ref={startCalendarRef}>
             <label className="text-sm font-medium mb-2 block">Start date</label>
             <button
@@ -431,7 +393,6 @@ const Dashboard = () => {
                   : "Select date"}
               </span>
             </button>
-            {/* Datepicker manual */}
             {showStartCalendar && (
               <div className="absolute bg-white border rounded-md p-3 mt-1 z-50">
                 {Array.from({ length: 31 }).map((_, i) => (
@@ -456,7 +417,6 @@ const Dashboard = () => {
             )}
           </div>
 
-          {/* Finish date */}
           <div className="relative" ref={endCalendarRef}>
             <label className="text-sm font-medium mb-2 block">
               Finish date
@@ -496,7 +456,6 @@ const Dashboard = () => {
             )}
           </div>
 
-          {/* Select Category */}
           <div className="flex flex-col">
             <label className="text-sm font-medium mb-2">Select Category</label>
             <select
@@ -512,7 +471,6 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* The Bar Chart */}
         {chartData ? (
           <Bar data={chartData} options={chartOptions} />
         ) : (
@@ -520,7 +478,6 @@ const Dashboard = () => {
         )}
       </div>
 
-      {/* Modal Category Summary */}
       {showCategoryModal && (
         <CategorySummaryModal
           categoryName={categoryTitle}
