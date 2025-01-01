@@ -19,7 +19,10 @@ const Header = ({ onSidebarToggle, onLogout, onOrderArchive }) => {
         const user = res.data.user;
         // user: { _id, username, email, role, profileImage, ...}
 
-        setProfileImage(user.profileImage || "/uploads/default-profile.png");
+        setProfileImage(
+          `http://127.0.0.1:5000${user.profileImage}` ||
+            "/uploads/default-profile.png"
+        );
         setUsername(user.username || "Unknown User");
         setRole(user.role || "Cashier");
         // Atur default role “Cashier” bila role kosong.

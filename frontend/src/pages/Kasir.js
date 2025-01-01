@@ -270,7 +270,9 @@ const Kasir = ({ setToast }) => {
       console.error("Error saving order:", error);
       setToast({
         type: "error",
-        message: error.response?.data?.message || "Terjadi kesalahan saat menyimpan pesanan.",
+        message:
+          error.response?.data?.message ||
+          "Terjadi kesalahan saat menyimpan pesanan.",
       });
     }
   };
@@ -330,7 +332,14 @@ const Kasir = ({ setToast }) => {
                 >
                   <div className="relative">
                     <img
-                      src={item.image}
+                      src={
+                        item.image
+                          ? item.image.startsWith("http://") ||
+                            item.image.startsWith("https://")
+                            ? item.image
+                            : `http://127.0.0.1:5000${item.image}`
+                          : "/uploads/default-menu.png"
+                      }
                       alt={item.name}
                       className="w-full h-48 object-cover"
                     />

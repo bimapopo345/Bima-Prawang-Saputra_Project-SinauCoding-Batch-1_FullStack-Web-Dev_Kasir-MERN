@@ -131,7 +131,10 @@ const Settings = () => {
           <h2 className="text-lg font-medium mb-4">Account</h2>
           <div className="flex items-start gap-4 mb-6">
             <img
-              src={user.profileImage || "/uploads/default-profile.png"}
+              src={
+                `http://127.0.0.1:5000${user.profileImage}` ||
+                "/uploads/default-profile.png"
+              }
               alt="Profile"
               className="w-24 h-24 rounded-full"
             />
