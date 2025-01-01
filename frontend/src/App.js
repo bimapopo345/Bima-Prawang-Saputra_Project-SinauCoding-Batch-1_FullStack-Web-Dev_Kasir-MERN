@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -38,6 +38,24 @@ function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isOrderArchiveOpen, setIsOrderArchiveOpen] = useState(false);
   const [archivedOrders, setArchivedOrders] = useState([]);
+
+  // >>> Tambahan: Untuk menampung data user (role, dsb.)
+  const [user, setUser] = useState(null);
+
+  // >>> Minimal: panggil /api/auth/profile agar tahu role user
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) return; // jika belum login, skip
+    axios
+      .get("/api/auth/profile")
+      .then((res) => {
+        // res.data => { user: {...} }
+        setUser(res.data.user);
+      })
+      .catch((err) => {
+        console.error("Error fetch profile:", err);
+      });
+  }, []);
 
   const handleSidebarToggle = () => {
     setIsSidebarOpen(!isSidebarOpen);
@@ -85,6 +103,7 @@ function App() {
         setIsOrderArchiveOpen={setIsOrderArchiveOpen}
         archivedOrders={archivedOrders}
         handleOrderArchive={handleOrderArchive}
+        user={user} // >>> kita pass user ke AppContent
       />
     </Router>
   );
@@ -100,6 +119,7 @@ const AppContent = ({
   setIsOrderArchiveOpen,
   archivedOrders,
   handleOrderArchive,
+  user, // >>> Tambahkan prop user di sini
 }) => {
   const location = useLocation();
   const authPaths = [
@@ -112,7 +132,8 @@ const AppContent = ({
 
   return (
     <div className="flex">
-      {!isAuthPage && <Sidebar />}
+      {/* Jika BUKAN halaman auth, tampilkan Sidebar, pass user */}
+      {!isAuthPage && <Sidebar user={user} />}
 
       <div className="flex-1 flex flex-col">
         {!isAuthPage && (

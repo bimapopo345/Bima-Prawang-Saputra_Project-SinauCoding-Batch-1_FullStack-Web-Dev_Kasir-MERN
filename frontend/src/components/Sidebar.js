@@ -1,4 +1,4 @@
-// frontend/src/components/Sidebar.js
+// /frontend/src/components/Sidebar.js
 import React from "react";
 import { NavLink } from "react-router-dom";
 import {
@@ -10,6 +10,9 @@ import {
 } from "react-icons/md";
 
 const Sidebar = ({ user }) => {
+  /**
+   * Menu default => Dashboard, Kasir, Sales Report, Settings
+   */
   const menuItems = [
     { name: "Dashboard", path: "/", icon: <MdDashboard size={24} /> },
     { name: "Kasir", path: "/kasir", icon: <MdPointOfSale size={24} /> },
@@ -21,7 +24,7 @@ const Sidebar = ({ user }) => {
     { name: "Settings", path: "/settings", icon: <MdSettings size={24} /> },
   ];
 
-  // Tambahkan menu Catalog kalau user.role === "Admin"
+  // Jika user & user.role === "Admin", tambahkan "Catalog"
   if (user && user.role === "Admin") {
     menuItems.splice(3, 0, {
       name: "Catalog",

@@ -58,15 +58,17 @@ const SuccessModal = ({ isOpen, onClose, orderDetails }) => {
               </div>
             </div>
 
+            {/* BAGIAN PENTING: Ganti 'item.menuItem.price' => 'item.price' */}
             <div className="border-t border-dashed pt-2" id="receipt-items">
               {orderDetails.items.map((item, index) => (
                 <div key={index} className="flex justify-between mb-2">
                   <span>
-                    {item.quantity} x {item.menuItem.name}
+                    {item.quantity} x {item.menuItem?.name || "(Deleted Item)"}
                     {item.note ? ` - ${item.note}` : ""}
                   </span>
                   <span>
-                    Rp {(item.menuItem.price * item.quantity).toLocaleString()}
+                    {/* Pastikan pakai item.price, bukan item.menuItem.price */}
+                    Rp {(item.price * item.quantity).toLocaleString()}
                   </span>
                 </div>
               ))}
